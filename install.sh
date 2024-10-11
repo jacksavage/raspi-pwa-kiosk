@@ -25,7 +25,7 @@ echo "Creating ansible-pull script..."
 cat << EOF | sudo tee /usr/local/bin/update-kiosk.sh
 #!/bin/bash
 source /home/pi/.env
-ansible-pull -U https://github.com/yourusername/raspi-kiosk-playbook.git raspi-kiosk-playbook.yml -e "pwa_url=\$PWA_URL"
+ansible-pull -U https://github.com/jacksavage/raspi-pwa-kiosk.git playbook.yml -e "pwa_url=\$PWA_URL"
 EOF
 
 sudo chmod +x /usr/local/bin/update-kiosk.sh
