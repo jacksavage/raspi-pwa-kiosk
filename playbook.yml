@@ -1,0 +1,106 @@
+---
+- hosts: localhost
+  become: true
+  vars:
+    pwa_url: "https://your-pwa-url.com"
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - chromium-browser
+          - xserver-xorg
+          - x11-xserver-utils
+          - openbox
+          - unclutter
+        state: present
+
+    - name: Create kiosk script
+      copy:
+        dest: /home/pi/kiosk.sh
+        content: |
+          #!/bin/bash
+          xset s off
+          xset s noblank
+          xset -dpms
+
+          unclutter -idle 0.5 -root &
+
+          sed -i 's/"exited_cleanly":false/"exited_cleanly":true/' ~/.config/chromium/Default/Preferences
+          sed -i 's/"exit_type":"Crashed"/"exit_type":"Normal"/' ~/.config/chromium/Default/Preferences
+
+          /usr/bin/chromium-browser --noerrdialogs --disable-infobars --kiosk {{ pwa_url }}
+        mode: "0755"
+
+    - name: Create openbox autostart directory
+      file:
+        path: /home/pi/.config/openbox
+        state: directory
+
+    - name: Create openbox autostart file
+      copy:
+        dest: /home/pi/.config/openbox/autostart
+        content: |
+          ~/kiosk.sh &
+
+    - name: Create kiosk service file
+      copy:
+        dest: /etc/systemd/system/kiosk.service
+        content: |
+          [Unit]
+          Description=Chromium Kiosk
+          Wants=graphical.target
+          After=graphical.target
+
+          [Service]
+          Environment=DISPLAY=:0.0
+          Environment=XAUTHORITY=/home/pi/.Xauthority
+          Type=simple
+          ExecStart=/usr/bin/startx -- -nocursor
+          Restart=on-abort
+          User=pi
+
+          [Install]
+          WantedBy=graphical.target
+
+    - name: Enable kiosk service
+      systemd:
+        name: kiosk.service
+        enabled: yes
+
+    - name: Disable common system key combinations
+      copy:
+        dest: /etc/X11/xorg.conf.d/99-kiosk.conf
+        content: |
+          Section "ServerFlags"
+              Option "DontVTSwitch" "true"
+              Option "DontZap"      "true"
+          EndSection
+
+          Section "InputClass"
+              Identifier      "Disable Zap"
+              MatchIsKeyboard "on"
+              Option          "XkbOptions" "terminate:ctrl_alt_bksp"
+          EndSection
+
+    - name: Create Xmodmap file to disable modifier keys
+      copy:
+        dest: /home/pi/.Xmodmap
+        content: |
+          clear Lock
+          clear Control
+          clear Mod1
+          clear Mod2
+          clear Mod3
+          clear Mod4
+          clear Mod5
+
+    - name: Add xmodmap to kiosk script
+      lineinfile:
+        path: /home/pi/kiosk.sh
+        line: "xmodmap ~/.Xmodmap"
+        insertbefore: BOF

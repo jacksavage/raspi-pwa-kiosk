@@ -1,0 +1,14 @@
+bksp
+Dont
+dpms
+infobars
+insertbefore
+lineinfile
+noblank
+nocursor
+noerrdialogs
+openbox
+startx
+XAUTHORITY
+xorg
+xset
